@@ -25,6 +25,31 @@ py -3.11 -m venv .venv
 ```
 
 Tests use synthetic data and do not require downloads, models or AWS access.
+
+## Golden Path: Run Everything End to End
+
+From a clean clone, after creating `.venv` as above, one command runs every
+local stage in order and stops at the first failure:
+
+```powershell
+.\scripts\run_all.ps1
+```
+
+| Stage | What runs | Evidence produced |
+| --- | --- | --- |
+| 1. Quality gate | `ruff check .` and `pytest` (same checks as CodeBuild) | Pass/fail in the log |
+| 2. Data pipeline | Download January 2024 TLC data, clean, aggregate, build features, split by time | `data/processed/pipeline_summary.json`, `data/features/*.parquet` |
+| 3. Training | XGBoost vs LightGBM per problem, select by validation RMSE, register winners | `mlflow.db`, `mlruns/`, SHAP plots under `artifacts/` |
+| 4. Batch inference | Recursive 3-hour demand forecast | Rows appended to `predictions.db` |
+| 5. Responsible AI | Subgroup error metrics, SHAP, model cards | `artifacts/responsible/`, `docs/model_cards/` |
+| 6. Drift detection | Synthetic drift report for both models | `artifacts/drift/` |
+| 7. Real-time serving | Start the API, wait for `status: ok`, run the smoke-test suite | Smoke-test JSON |
+
+Each run writes `artifacts/logs/golden_path_<timestamp>.log` and a matching
+`.json` summary containing the Git commit and every stage's status and duration.
+Rerun faster with `-SkipDownload` (reuse cached raw data) and `-SkipTraining`
+(reuse registered models). Training uses one Optuna trial per estimator by
+default (`-NTrials` to change).
 Follow [setup](docs/SETUP.md) to download data, train registered models, and
 start the API and dashboard. Do not expect working predictions immediately
 after cloning: serving requires both registered models and saved demand history.

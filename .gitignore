@@ -54,3 +54,6 @@ crash.log
 
 # Coverage report (generated in CI)
 coverage.xml
+
+# Private class material (contains account IDs and classmate names; repo is public)
+docs/class-transcripts/
